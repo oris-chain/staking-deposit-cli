@@ -1,5 +1,6 @@
 import os
 import click
+import yaml
 from typing import (
     Any,
     Callable,
@@ -35,6 +36,7 @@ from staking_deposit.settings import (
     MAINNET,
     PRATER,
     get_chain_setting,
+    get_devnet_chain_setting,
 )
 
 
@@ -48,6 +50,11 @@ def generate_keys_arguments_decorator(function: Callable[..., Any]) -> Callable[
     to obtain the necessary arguments for the generate_keys() subcommand.
     '''
     decorators = [
+        jit_option(
+            # Only for devnet tests
+            default=None,
+            param_decls='--devnet_chain_setting',
+        ),
         jit_option(
             callback=captive_prompt_callback(
                 lambda num: validate_int_range(num, 1, 2**32),
@@ -114,12 +121,28 @@ def generate_keys_arguments_decorator(function: Callable[..., Any]) -> Callable[
 @click.pass_context
 def generate_keys(ctx: click.Context, validator_start_index: int,
                   num_validators: int, folder: str, chain: str, keystore_password: str,
-                  execution_address: HexAddress, **kwargs: Any) -> None:
+                  execution_address: HexAddress, devnet_chain_setting: str, **kwargs: Any) -> None:
     mnemonic = ctx.obj['mnemonic']
     mnemonic_password = ctx.obj['mnemonic_password']
+    global MAX_DEPOSIT_AMOUNT
     amounts = [MAX_DEPOSIT_AMOUNT] * num_validators
     folder = os.path.join(folder, DEFAULT_VALIDATOR_KEYS_FOLDER_NAME)
     chain_setting = get_chain_setting(chain)
+    if devnet_chain_setting is not None:
+        click.echo('\n%s\n' % '**[Warning] Using devnet chain setting to generate the SignedBLSToExecutionChange.**\t')
+        # devnet_chain_setting_dict = json.loads(devnet_chain_setting)
+        # 读取 YAML 文件
+        with open(devnet_chain_setting, 'r') as file:
+            devnet_chain_setting_dict = yaml.load(file, Loader=yaml.BaseLoader)
+
+            print("6666")
+        chain_setting = get_devnet_chain_setting(
+            network_name=devnet_chain_setting_dict.get('CHAIN_ID', "mainnet"),
+            genesis_fork_version=devnet_chain_setting_dict['GENESIS_FORK_VERSION'],
+            genesis_validator_root=devnet_chain_setting_dict['GENESIS_VALIDATOR_ROOT']
+        )
+        MAX_DEPOSIT_AMOUNT = int(devnet_chain_setting_dict['MAX_EFFECTIVE_BALANCE'])
+        amounts = [MAX_DEPOSIT_AMOUNT] * num_validators
     if not os.path.exists(folder):
         os.mkdir(folder)
     click.clear()

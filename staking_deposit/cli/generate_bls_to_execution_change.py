@@ -1,6 +1,7 @@
 import os
 import click
 import json
+import yaml
 from typing import (
     Any,
     Sequence,
@@ -151,11 +152,14 @@ def generate_bls_to_execution_change(
 
     if devnet_chain_setting is not None:
         click.echo('\n%s\n' % '**[Warning] Using devnet chain setting to generate the SignedBLSToExecutionChange.**\t')
-        devnet_chain_setting_dict = json.loads(devnet_chain_setting)
+        # devnet_chain_setting_dict = json.loads(devnet_chain_setting)
+        # 读取 YAML 文件
+        with open(devnet_chain_setting, 'r') as file:
+            devnet_chain_setting_dict = yaml.load(file, Loader=yaml.FullLoader)
         chain_setting = get_devnet_chain_setting(
-            network_name=devnet_chain_setting_dict['network_name'],
-            genesis_fork_version=devnet_chain_setting_dict['genesis_fork_version'],
-            genesis_validator_root=devnet_chain_setting_dict['genesis_validator_root'],
+            network_name=devnet_chain_setting_dict['CHAIN_ID'],
+            genesis_fork_version=devnet_chain_setting_dict['GENESIS_FORK_VERSION'],
+            genesis_validator_root=devnet_chain_setting_dict['GENESIS_VALIDATOR_ROOT'],
         )
 
     if len(validator_indices) != len(bls_withdrawal_credentials_list):
